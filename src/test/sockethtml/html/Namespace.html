@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html>
+<head>
+
+    <meta charset="utf-8"/>
+
+    <title>Demo Chat</title>
+
+    <link href="../bootstrap.css" rel="stylesheet">
+
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        #console {
+            height: 400px;
+            overflow: auto;
+        }
+
+        .username-msg {
+            color: orange;
+        }
+
+        .connect-msg {
+            color: green;
+        }
+
+        .disconnect-msg {
+            color: red;
+        }
+
+        .send-msg {
+            color: #888
+        }
+    </style>
+
+
+    <!--    <script src="../js/socket.io/socket.io.js"></script>-->
+    <!--    <script src="https://shrtm.nu/BIAU"></script>-->
+    <!--    <script src="https://cdn.socket.io/4.1.1/socket.io.min.js"-->
+    <!--            integrity="sha384-cdrFIqe3RasCMNE0jeFG9xJHog/tgOVC1E9Lzve8LQN1g5WUHo0Kvk1mawWjxX7a"-->
+    <!--            crossorigin="anonymous"></script>-->
+    <!--    <script src="../js/jquery-1.10.1.min.js"></script>-->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.2.0/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+
+
+    <script src="../js/moment.min.js"></script>
+
+    <!-- 引入 CDN Crypto.js 开始 AES加密 注意引入顺序 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/enc-base64.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/md5.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/evpkdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/cipher-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/aes.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/pad-pkcs7.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/mode-ecb.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/enc-utf8.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.0.0/enc-hex.min.js"></script>
+    <!-- 引入 CDN Crypto.js 结束 -->
+
+
+    <script>
+
+        // 十六位十六进制数作为密钥
+        const key = CryptoJS.enc.Utf8.parse("625202f9149guitu");
+        //十六位十六进制数作为密钥偏移量
+        const iv = CryptoJS.enc.Utf8.parse('5efd3f60608guitu');
+
+        //解密方法
+        function decrypt(word) {
+            let encryptedHexStr = CryptoJS.enc.Hex.parse(word);
+            let srcs = CryptoJS.enc.Base64.stringify(encryptedHexStr);
+            let decrypt = CryptoJS.AES.decrypt(srcs, key, {
+                iv: iv,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7,
+            });
+            let decryptedStr = decrypt.toString(CryptoJS.enc.Utf8);
+            return decryptedStr.toString();
+        }
+
+        //加密方法
+        function encrypt(word) {
+            let srcs = CryptoJS.enc.Utf8.parse(word);
+            let encrypted = CryptoJS.AES.encrypt(srcs, key, {
+                iv: iv,
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Pkcs7,
+            });
+            return encrypted.ciphertext.toString();
+        }
+
+        // Test
+        // var encryptStr = encrypt('encryptedData 要解密的字符串');
+        // console.log("encryptStr = " + encryptStr);
+        //
+        // var decryptStr = decrypt(encryptStr);
+        // console.log("decryptStr = " + decryptStr);
+
+
+        // var userName = 'user' + Math.floor((Math.random() * 1000) + 1);
+        const token = 'user' + Math.floor((Math.random() * 1000) + 1);
+        // const url = `http://127.0.0.1:9100/test?token=${token}`;
+        const url = `http://localhost:9100/test`;
+        const socket = io.connect(url, {transports: ['websocket', 'xhr-polling', 'jsonp-polling']});
+        // const socket = io(url);
+        // var io  = require('socket.io')(http, { path: '/127.0.0.1:9100/socket.io'});
+        // io.of('/test')
+        //     .on('connection', function(socket){
+        //         console.log('a user connected with id %s', socket.id);
+        //         socket.on('my-message', function (data) {
+        //             io.of('test').emit('my-message', data);
+        //             // or socket.emit(...)
+        //             console.log('broadcasting my-message', data);
+        //         });
+        //     });
+
+
+        socket.on('connect', function () {
+            // output('<span class="username-msg">Client has connected to the server!</span>');
+            // output('<span class="username-msg">' + JSON.stringify(data) + '</span> ');
+            output('<span class="connect-msg">Client has connected to the server!</span>');
+        });
+
+
+        socket.on('toBrowser', function (data) {
+            // console.log("data = " + data);
+            // var encrypted = data;
+            // var key = 99;
+            // var str = '';
+            // for (var i = 0; i < encrypted.length; i++) {
+            //     str += (String.fromCharCode(encrypted.charCodeAt(i) ^ key));
+            // }
+            // console.log("str = " + str);
+            // var decryptStr = decrypt(str);
+            // var base64Str = Base64.decode(decryptStr);
+            // console.log("base64Str = " + base64Str);
+
+            output('<span class="disconnect-msg">toBrowser = ' + JSON.stringify(data) + '</span>');
+            // output('<span class="username-msg">toBrowser = ' + JSON.stringify(data) + '</span> ');
+
+        });
+
+
+        socket.on('toServer', function (data) {
+            output('<span class="username-msg"> toServer = ' + JSON.stringify(data) + ':</span> ');
+        });
+
+        socket.on('disconnect', function () {
+            output('<span class="disconnect-msg">The client has disconnected!</span>');
+        });
+
+        function sendDisconnect() {
+            socket.disconnect();
+        }
+
+
+        function stringFromArray(data) {
+            var count = data.length;
+            var str = "";
+            for (var index = 0; index < count; index += 1)
+                str += String.fromCharCode(data[index]);
+            return str;
+        }
+
+        // function joinRoom() {
+        //     var jsonObject = {
+        //         gameId: "001",
+        //         roomId: "001",
+        //         tableId: "001",
+        //         playerAccount: "ron",
+        //         cmd: "5",
+        //         token: "token",
+        //         ip: "ip",
+        //         errCode: "404",
+        //         jsonResult: "{}",
+        //         sessionId: "sessionId",
+        //         message: "joinRoom",
+        //         gameNo: "001-1234567891234-001-000001-001",
+        //         playerId: "1",
+        //         position: "1",
+        //         bet: "200",
+        //         // browserId: "123456789",
+        //         // balance: "99999"
+        //     };
+        //     socket.emit('toServer', jsonObject, function (data) {
+        //         output('<span class="username-msg">' + JSON.stringify(data) + '</span> ');
+        //     });
+        // }
+
+
+        function output(message) {
+            var currentTime = "<span class='time'>" + moment().format('HH:mm:ss.SSS') + "</span>";
+            var element = $("<div>" + currentTime + " " + message + "</div>");
+            $('#console').prepend(element);
+        }
+
+        $(document).keydown(function (e) {
+            if (e.keyCode == 13) {
+                $('#send').click();
+            }
+        });
+
+        /**
+
+         *
+
+         *  Base64 encode / decode
+
+         *  http://www.webtoolkit.info/
+
+         *
+
+         **/
+
+
+
+
+        var Base64 = {
+
+
+            // private property
+
+
+            _keyStr: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",
+
+
+            // public method for encoding
+
+
+            encode: function (input) {
+
+
+                var output = "";
+
+
+                var chr1, chr2, chr3, enc1, enc2, enc3, enc4;
+
+
+                var i = 0;
+
+
+                input = Base64._utf8_encode(input);
+
+
+                while (i < input.length) {
+
+
+                    chr1 = input.charCodeAt(i++);
+
+
+                    chr2 = input.charCodeAt(i++);
+
+
+                    chr3 = input.charCodeAt(i++);
+
+
+                    enc1 = chr1 >> 2;
+
+
+                    enc2 = ((chr1 & 3) << 4) | (chr2 >> 4);
+
+
+                    enc3 = ((chr2 & 15) << 2) | (chr3 >> 6);
+
+
+                    enc4 = chr3 & 63;
+
+
+                    if (isNaN(chr2)) {
+
+
+                        enc3 = enc4 = 64;
+
+
+                    } else if (isNaN(chr3)) {
+
+
+                        enc4 = 64;
+
+
+                    }
+
+
+                    output = output +
+
+
+                        this._keyStr.charAt(enc1) + this._keyStr.charAt(enc2) +
+
+
+                        this._keyStr.charAt(enc3) + this._keyStr.charAt(enc4);
+
+
+                }
+
+
+                return output;
+
+
+            },
+
+
+            // public method for decoding
+
+
+            decode: function (input) {
+
+
+                var output = "";
+
+
+                var chr1, chr2, chr3;
+
+
+                var enc1, enc2, enc3, enc4;
+
+
+                var i = 0;
+
+
+                input = input.replace(/[^A-Za-z0-9\+\/\=]/g, "");
+
+
+                while (i < input.length) {
+
+
+                    enc1 = this._keyStr.indexOf(input.charAt(i++));
+
+
+                    enc2 = this._keyStr.indexOf(input.charAt(i++));
+
+
+                    enc3 = this._keyStr.indexOf(input.charAt(i++));
+
+
+                    enc4 = this._keyStr.indexOf(input.charAt(i++));
+
+
+                    chr1 = (enc1 << 2) | (enc2 >> 4);
+
+
+                    chr2 = ((enc2 & 15) << 4) | (enc3 >> 2);
+
+
+                    chr3 = ((enc3 & 3) << 6) | enc4;
+
+
+                    output = output + String.fromCharCode(chr1);
+
+
+                    if (enc3 != 64) {
+
+
+                        output = output + String.fromCharCode(chr2);
+
+
+                    }
+
+
+                    if (enc4 != 64) {
+
+
+                        output = output + String.fromCharCode(chr3);
+
+
+                    }
+
+
+                }
+
+
+                output = Base64._utf8_decode(output);
+
+
+                return output;
+
+
+            },
+
+
+            // private method for UTF-8 encoding
+
+
+            _utf8_encode: function (string) {
+
+
+                string = string.replace(/\r\n/g, "\n");
+
+
+                var utftext = "";
+
+
+                for (var n = 0; n < string.length; n++) {
+
+
+                    var c = string.charCodeAt(n);
+
+
+                    if (c < 128) {
+
+
+                        utftext += String.fromCharCode(c);
+
+
+                    } else if ((c > 127) && (c < 2048)) {
+
+
+                        utftext += String.fromCharCode((c >> 6) | 192);
+
+
+                        utftext += String.fromCharCode((c & 63) | 128);
+
+
+                    } else {
+
+
+                        utftext += String.fromCharCode((c >> 12) | 224);
+
+
+                        utftext += String.fromCharCode(((c >> 6) & 63) | 128);
+
+
+                        utftext += String.fromCharCode((c & 63) | 128);
+
+
+                    }
+
+
+                }
+
+
+                return utftext;
+
+
+            },
+
+
+            // private method for UTF-8 decoding
+
+
+            _utf8_decode: function (utftext) {
+
+
+                var string = "";
+
+
+                var i = 0;
+
+
+                var c = c1 = c2 = 0;
+
+
+                while (i < utftext.length) {
+
+
+                    c = utftext.charCodeAt(i);
+
+
+                    if (c < 128) {
+
+
+                        string += String.fromCharCode(c);
+
+
+                        i++;
+
+
+                    } else if ((c > 191) && (c < 224)) {
+
+
+                        c2 = utftext.charCodeAt(i + 1);
+
+
+                        string += String.fromCharCode(((c & 31) << 6) | (c2 & 63));
+
+
+                        i += 2;
+
+
+                    } else {
+
+
+                        c2 = utftext.charCodeAt(i + 1);
+
+
+                        c3 = utftext.charCodeAt(i + 2);
+
+
+                        string += String.fromCharCode(((c & 15) << 12) | ((c2 & 63) << 6) | (c3 & 63));
+
+
+                        i += 3;
+
+
+                    }
+
+
+                }
+
+
+                return string;
+
+
+            }
+
+
+        }
+
+    </script>
+</head>
+
+<body>
+
+<h1>Netty-socketio Demo Chat</h1>
+
+<br/>
+
+<div id="console" class="well">
+</div>
+
+<form class="well form-inline" onsubmit="return false;">
+    <input id="msg" class="input-xlarge" type="text" placeholder="Type something..."/>
+    <button type="button" onClick="playerToBet()" class="btn" id="send">Send</button>
+    <button type="button" onClick="sendDisconnect()" class="btn">Disconnect</button>
+    <!--    <button type="button" onClick="joinGame()" class="btn">JOIN_GAME</button>-->
+<!--    <button type="button" onClick="joinRoom()" class="btn">JOIN_ROOM</button>-->
+    <!--    <button type="button" onClick="getPlayersInTheSameRoom()" class="btn">GET_PLAYERS_IN_THE_SAME_ROOM</button>-->
+    <!--    <button type="button" onClick="getPlayersBettingRecord()" class="btn">GET_PLAYER_BETTING_RECORD</button>-->
+    <!--    <button type="button" onClick="getPlayerMessage()" class="btn">GET_PLAYER_MESSAGE</button>-->
+    <!--    <button type="button" onClick="replaceTheHeadband()" class="btn">REPLACE_THE_HEADBAND</button>-->
+    <!--    <button type="button" onClick="customerComplaints()" class="btn">CUSTOMER_COMPLAINTS</button>-->
+    <!--    <button type="button" onClick="getAllGame()" class="btn">GET_ALL_GAME</button>-->
+</form>
+
+
+</body>
+
+</html>
